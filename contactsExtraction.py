@@ -1,44 +1,48 @@
 '''
-This script Extracts Contacts from iTunes backup for an iphone with iOS 13, and save it as CSV file(google format).
-You can upload it easly to google acount.
-The name of the file is 31bb7ba8914766d4ba40d6dfb6113c8b614be442 and it should be under 31 folder.
-You can find the file path by searching Google!(it depends on your system).
-It works fine for me.
-Backup the itunes backup(or just the file we use) for safety reasons.
+This script extracts contacts from an iTunes backup for an iPhone with iOS 13 and saves it as a CSV file.
+The file '31bb7ba8914766d4ba40d6dfb6113c8b614be442' should be under the 31 folder.
+Before running, ensure you have a backup of the iTunes backup file.
 '''
+
 import sqlite3
 import csv
+import sys
 
-# *** IMPORTANT: change the full path, depends on your platform MAC/PC. I personally put the file (31bb7ba8914766d4ba40d6dfb6113c8b614be442) on desktop
-conn = sqlite3.connect('C://Users//elias//Desktop//31bb7ba8914766d4ba40d6dfb6113c8b614be442') # Full Path
-c = conn.cursor()
+def extract_contacts(db_path, output_csv_path):
+    """
+    Extracts contacts from the specified iTunes backup database and writes them to a CSV file.
+    Args:
+    db_path: str - Path to the iTunes backup database file.
+    output_csv_path: str - Path to the output CSV file.
+    """
+    try:
+        with sqlite3.connect(db_path) as conn, open(output_csv_path, 'w', newline='', encoding='utf-8') as csvfile:
+            cursor = conn.cursor()
+            query = '''
+            SELECT ABPerson.First, ABPerson.Last, ABMultiValue.value
+            FROM ABPerson
+            INNER JOIN ABMultiValue ON ABPerson.ROWID = ABMultiValue.record_id
+            WHERE ABPerson.First != 'SPAM'
+            '''
+            cursor.execute(query)
 
-# Query table 
-c.execute('SELECT ABPerson.First,ABPerson.Last,ABMultiValue.value FROM ABPerson INNER JOIN  ABMultiValue ON ABPerson.ROWID = ABMultiValue.record_id')
-queryList = c.fetchall()
-first_l = []
-last_l = []
-number_l = []
-for v in queryList:
-    if v[0] != 'SPAM': # Ignoring SPAM
-        first_l.append(' ') if (v[0] == None) else first_l.append(v[0]) # Replacing None to ' ' 
-        last_l.append(' ') if (v[1] == None) else last_l.append(v[1])
-        number_l.append(v[2])
-    # else:
-        # print(v[0])
+            fieldnames = ['Given name', 'Family Name', 'Phone 1 - Value']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
 
-conn.close()
+            for first, last, number in cursor:
+                writer.writerow({
+                    'Given name': first or ' ',
+                    'Family Name': last or ' ',
+                    'Phone 1 - Value': number
+                })
 
-length = len(first_l)
-# You can change the file name whatever you want.
-with open('D://contacts.csv', 'w', newline='', encoding='utf-8') as csvfile:
-    # It shuld be this format.
-    fieldnames = ['Name', 'Given name', 'Additional Name', 'Family Name', 'Yomi Name', 'Given name Yomi', 'Additional Name Yomi', 'Family Name Yomi', 'Name Prefix', 'Name Suffix', 'Initials', 'Nickname', 'Short Name', 'Maiden Name', 'Birthday', 'Gender', 'Location', 'Billing Information', 'Directory Server', 'Mileage', 'Occupation', 'Hobby', 'Sensitivity', 'Priority', 'Subject', 'Notes', 'Language', 'Photo', 'Group Membership', 'Phone 1 - Type', 'Phone 1 - Value']
-    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        sys.exit(1)
 
-    writer.writeheader()
-    for i in range(length):
-        writer.writerow({'Given name': str(first_l[i]), 'Family Name': str(last_l[i]), 'Phone 1 - Value': str(number_l[i])})
-    
+# Replace with the path to your database and output CSV file.
+db_path = 'C:\\path\\to\\input\\31bb7ba8914766d4ba40d6dfb6113c8b614be442'
+output_csv_path = 'C:\\path\\to\\output\\contacts.csv'
 
-
+extract_contacts(db_path, output_csv_path)
